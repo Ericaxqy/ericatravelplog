@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Erica 的旅行日志</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <style>
   /* --- 基础与极简样式 --- */
-  body { margin: 0; background: #f0f0f0; font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: #f0f0f0; font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
   .app-container { max-width: 500px; margin: 0 auto; background: white; min-height: 100vh; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
   
   .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 8px; font-size: 14px; z-index: 10000; opacity: 0; pointer-events: none; transition: all 0.3s; }
@@ -20,11 +21,12 @@
   .profile-name { color: white; font-size: 22px; font-weight: 600; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
   .profile-avatar { width: 75px; height: 75px; border-radius: 12px; background: #fff; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
   
-  /* 隐藏的管理员入口锁 */
+  /* 管理员入口锁 */
   .admin-lock { font-size: 12px; color: rgba(255,255,255,0.4); margin-left: 8px; cursor: pointer; padding: 5px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
   
   /* --- 信息流 --- */
   .feed { padding: 45px 15px 20px; }
+  .feed.viewer-mode img { cursor: zoom-in; } /* 访客模式下显示放大手势 */
   .post { display: flex; margin-bottom: 30px; border-bottom: 1px solid #f5f5f5; padding-bottom: 20px; }
   .avatar { width: 45px; height: 45px; border-radius: 6px; margin-right: 12px; flex-shrink: 0; object-fit: cover; }
   .post-body { flex: 1; overflow: hidden; }
@@ -45,7 +47,6 @@
   .btn-edit { color: #576b95; }
   .btn-delete { color: #ff4d4f; }
   
-  /* 悬浮按钮默认隐藏，靠 JS 控制显示 */
   .fab-btn { display: none; position: fixed; bottom: 30px; right: 50%; transform: translateX(210px); width: 56px; height: 56px; background: #07c160; color: white; border-radius: 50%; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 4px 15px rgba(7,193,96,0.4); cursor: pointer; z-index: 100; transition: transform 0.2s; }
   .fab-btn:active { transform: translateX(210px) scale(0.9); }
   
@@ -56,7 +57,7 @@
   .form-group input, .form-group textarea { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 8px; box-sizing: border-box; font-size: 15px; background: #f9f9f9; outline: none; font-family: inherit; margin-bottom: 15px; transition: border 0.3s; }
   .form-group input:focus, .form-group textarea:focus { border-color: #07c160; }
   
-  /* --- 高级版资料设置 UI --- */
+  /* --- 资料设置 UI --- */
   .profile-edit-box { padding: 0; overflow: hidden; background: #fff; }
   .edit-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #f0f0f0; }
   .edit-header h3 { margin: 0; font-size: 16px; font-weight: 600; color: #333; }
@@ -69,17 +70,21 @@
   .edit-form-area { padding: 55px 20px 25px; }
   .edit-form-area label { display: block; font-size: 13px; color: #888; margin-bottom: 8px; }
 
-  /* --- 图片上传区 --- */
+  /* --- 图片上传与拖拽排序区 --- */
   .image-upload-area { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
-  .preview-img-box { width: 70px; height: 70px; position: relative; border-radius: 6px; overflow: hidden; }
+  .preview-img-box { width: 70px; height: 70px; position: relative; border-radius: 6px; overflow: hidden; cursor: grab; } /* 增加可抓取手势 */
+  .preview-img-box:active { cursor: grabbing; box-shadow: 0 4px 10px rgba(0,0,0,0.2); } /* 抓取时样式 */
   .preview-img-box img { width: 100%; height: 100%; object-fit: cover; }
-  .remove-img { position: absolute; top: 0; right: 0; background: rgba(0,0,0,0.6); color: white; width: 20px; height: 20px; font-size: 12px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+  .remove-img { position: absolute; top: 0; right: 0; background: rgba(0,0,0,0.6); color: white; width: 20px; height: 20px; font-size: 12px; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 2; }
   .add-img-btn { width: 70px; height: 70px; background: #f5f5f5; border: 1px dashed #ccc; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 24px; color: #999; }
+  /* 拖拽库排序时的占位样式 */
+  .sortable-ghost { opacity: 0.3; background: #07c160; }
   
-  .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
-  .modal-actions button { padding: 10px 24px; border: none; border-radius: 20px; cursor: pointer; font-size: 15px; font-weight: 500; }
-  .btn-cancel { background: #f0f0f0; color: #333; }
-  .btn-save { background: #07c160; color: white; }
+  /* --- 大图查看器 (朋友圈模式) --- */
+  .lightbox-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 10000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; cursor: zoom-out; }
+  .lightbox-overlay.active { display: flex; opacity: 1; }
+  .lightbox-img { max-width: 95%; max-height: 95%; object-fit: contain; box-shadow: 0 0 20px rgba(0,0,0,0.5); transform: scale(0.9); transition: transform 0.3s; }
+  .lightbox-overlay.active .lightbox-img { transform: scale(1); }
 </style>
 </head>
 <body>
@@ -97,11 +102,15 @@
     </div>
   </div>
 
-  <div class="feed" id="feed-container">
+  <div class="feedviewer-mode" id="feed-container">
     <div style="text-align: center; color: #999; margin-top: 50px;">加载中...</div>
   </div>
 
   <div class="fab-btn" onclick="openPostModal('create')"><i class="fa-solid fa-plus"></i></div>
+
+  <div class="lightbox-overlay" id="lightbox-overlay" onclick="closeLightbox()">
+    <img class="lightbox-img" id="lightbox-img" src="">
+  </div>
 
   <div class="modal-overlay" id="profile-modal">
     <div class="modal-box profile-edit-box">
@@ -137,11 +146,13 @@
       <h3 id="modal-title" style="margin-top: 0;">记录这一刻</h3>
       <input type="hidden" id="post-id">
       <div class="form-group"><textarea id="post-text" placeholder="这一刻的想法..." style="height: 100px;"></textarea></div>
+      
       <div class="image-upload-area" id="image-preview-area">
         <label class="add-img-btn" id="add-img-btn-label">
           <i class="fa-solid fa-plus"></i><input type="file" accept="image/*" multiple style="display: none;" id="post-images-upload">
         </label>
       </div>
+      
       <div class="form-group">
         <input type="text" id="post-location" placeholder="所在位置 (例如: 东京 · 涩谷)">
         <input type="datetime-local" id="post-time">
@@ -173,56 +184,52 @@
   const profileDocRef = doc(db, "settings", "my_profile");
 
   // --- 【核心权限引擎】 ---
-  // 从浏览器本地缓存读取身份，默认不是管理员
   let isAdmin = localStorage.getItem('mos_admin_key') === 'true';
 
-  // 根据身份更新 UI 显示
   function applyAdminUI() {
     const fabBtn = document.querySelector('.fab-btn');
     const lockIcon = document.querySelector('.admin-lock');
+    const feedContainer = document.getElementById('feed-container');
+    
     if (isAdmin) {
       fabBtn.style.display = 'flex';
       lockIcon.classList.remove('fa-lock');
       lockIcon.classList.add('fa-unlock');
       lockIcon.style.color = '#07c160';
+      feedContainer.classList.remove('viewer-mode'); // 管理员模式下不显示放大手势
     } else {
       fabBtn.style.display = 'none';
       lockIcon.classList.remove('fa-unlock');
       lockIcon.classList.add('fa-lock');
       lockIcon.style.color = 'rgba(255,255,255,0.4)';
+      feedContainer.classList.add('viewer-mode'); // 访客模式下图片可点击放大
     }
-    renderFeed(); // 重新渲染列表以隐藏/显示编辑按钮
+    renderFeed();
   }
 
-  // 秘密解锁入口
   window.secretLogin = (event) => {
-    event.stopPropagation(); // 阻止触发点击封面的事件
+    event.stopPropagation();
     if (!isAdmin) {
       const pwd = prompt("请输入 Erica 专属博主密码：");
       if (pwd === "erica2026") {
         localStorage.setItem('mos_admin_key', 'true');
         isAdmin = true;
         applyAdminUI();
-        showToast("欢迎回来，Erica！编辑权限已解锁 🔓");
+        showToast("欢迎回来，Erica！已解锁排序与放大功能 🔓");
       } else if (pwd !== null) {
-        showToast("密码错误，你当前为访客模式 👀");
+        showToast("密码错误，当前为浏览模式 👀");
       }
     } else {
       if (confirm("要退出博主模式，锁定页面吗？")) {
         localStorage.removeItem('mos_admin_key');
         isAdmin = false;
         applyAdminUI();
-        showToast("已锁定，当前为访客模式 🔒");
+        showToast("已锁定，当前为浏览模式 🔒");
       }
     }
   };
 
-  // 控制封面点击（只有博主才能修改资料）
-  window.handleCoverClick = () => {
-    if (isAdmin) openProfileModal();
-  };
-
-  // 页面加载时立刻应用权限 UI
+  window.handleCoverClick = () => { if (isAdmin) openProfileModal(); };
   window.onload = applyAdminUI;
 
   // --- 基础工具库 ---
@@ -233,6 +240,25 @@
   };
   window.closeModal = (id) => document.getElementById(id).classList.remove('active');
 
+  // --- 【全新大图查看器】逻辑 ---
+  window.openLightbox = (imgUrl) => {
+    // 只有在访客模式（非管理员）下点击图片才放大，避免和管理员的编辑逻辑冲突
+    if (!isAdmin) {
+      const overlay = document.getElementById('lightbox-overlay');
+      const img = document.getElementById('lightbox-img');
+      img.src = imgUrl;
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden'; // 锁定页面滑动
+    }
+  };
+  window.closeLightbox = () => {
+    const overlay = document.getElementById('lightbox-overlay');
+    overlay.classList.remove('active');
+    document.body.style.overflow = ''; // 恢复页面滑动
+    setTimeout(() => { document.getElementById('lightbox-img').src = ''; }, 300); // 清空图片源
+  };
+
+  // 图片压缩
   async function compressImage(file, maxW = 800) {
     return new Promise((resolve) => {
       const reader = new FileReader(); reader.readAsDataURL(file);
@@ -288,6 +314,7 @@
 
   // --- 云端动态管理 ---
   let currentImages = []; let postsList = [];
+  let sortableInstance = null; // 用于存储拖拽实例
 
   const q = query(postsCollection, orderBy("time", "desc"));
   onSnapshot(q, (snapshot) => {
@@ -303,7 +330,6 @@
       let grid = 'grid-9'; if (post.images && post.images.length === 1) grid = 'grid-1'; else if (post.images && [2, 4].includes(post.images.length)) grid = 'grid-4';
       const timeStr = new Date(post.time).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-      // 如果是管理员，才输出“修改”和“删除”按钮的 HTML
       const actionBtnsHTML = isAdmin ? `
         <div class="action-btns">
           <button class="action-btn btn-edit" onclick="openPostModal('edit', '${post.id}')">修改</button>
@@ -317,8 +343,8 @@
           <div class="post-body">
             <div class="author-name">${post.authorName || userProfile.name}</div>
             <div class="post-text">${post.text}</div>
-            ${post.images && post.images.length ? `<div class="img-grid ${grid}">${post.images.map(img => `<img src="${img}">`).join('')}</div>` : ''}
-            ${post.location ? `<div class="location-tag">${post.location}</div>` : ''}
+            ${post.images && post.images.length ? `<div class="img-grid ${grid}">${post.images.map(img => `<img src="${img}" onclick="openLightbox('${img}')">`).join('')}</div>` : ''}
+            ${post.location ? `<div class="location-tag">📍 ${post.location}</div>` : ''}
             <div class="meta-info">
               <span>${timeStr}</span>
               ${actionBtnsHTML}
@@ -328,19 +354,50 @@
     });
   }
 
+  // 更新图片预览（含删除和重新初始化拖拽）
   function updateImagePreviews() {
     const area = document.getElementById('image-preview-area');
     area.querySelectorAll('.preview-img-box').forEach(el => el.remove());
+    
     currentImages.forEach((img, i) => {
-      const box = document.createElement('div'); box.className = 'preview-img-box';
+      const box = document.createElement('div'); 
+      box.className = 'preview-img-box';
+      // 增加 data-index 用于拖拽排序后重新识别顺序
+      box.setAttribute('data-index', i);
       box.innerHTML = `<img src="${img}"><div class="remove-img" onclick="removeImage(${i})">X</div>`;
       area.insertBefore(box, document.getElementById('add-img-btn-label'));
     });
+    
+    // 图片更新后，需要重新初始化或销毁拖拽实例
+    if (isAdmin) {
+      if (sortableInstance) sortableInstance.destroy();
+      initSortable();
+    }
   }
+  
+  // --- 【全新图片拖拽排序】逻辑 ---
+  function initSortable() {
+    const area = document.getElementById('image-preview-area');
+    sortableInstance = new Sortable(area, {
+      animation: 150,
+      filter: '.add-img-btn', // 保证“加号”按钮不参与排序且永远在最后
+      ghostClass: 'sortable-ghost', // 拖拽时的占位样式
+      onEnd: function (evt) {
+        // 拖拽结束时，根据 DOM 的新顺序重新排列 currentImages 数组
+        const newImages = [];
+        area.querySelectorAll('.preview-img-box img').forEach(img => {
+          newImages.push(img.src);
+        });
+        currentImages = newImages;
+        // 注意：这里不要调用 updateImagePreviews()，否则会触发循环渲染
+      }
+    });
+  }
+  
   window.removeImage = (index) => { currentImages.splice(index, 1); updateImagePreviews(); };
 
   document.getElementById('post-images-upload').addEventListener('change', async (e) => {
-    showToast("图片压缩中...");
+    showToast("压缩图片中...");
     for (let file of Array.from(e.target.files).slice(0, 9 - currentImages.length)) { currentImages.push(await compressImage(file, 800)); }
     updateImagePreviews();
   });
