@@ -14,12 +14,14 @@
   .toast.show { opacity: 1; transform: translate(-50%, 10px); }
   
   /* --- 头部封面 --- */
-  .cover { height: 320px; background-color: #ddd; background-position: center; background-size: cover; position: relative; cursor: pointer; transition: opacity 0.2s;}
-  .cover:active { opacity: 0.9; }
+  .cover { height: 320px; background-color: #ddd; background-position: center; background-size: cover; position: relative; transition: opacity 0.2s;}
   .profile-wrap { position: absolute; right: 20px; bottom: -25px; display: flex; align-items: flex-end; }
-  .name-wrap { display: flex; align-items: center; margin-bottom: 35px; margin-right: 20px; cursor: pointer; }
+  .name-wrap { display: flex; align-items: center; margin-bottom: 35px; margin-right: 20px; }
   .profile-name { color: white; font-size: 22px; font-weight: 600; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
-  .profile-avatar { width: 75px; height: 75px; border-radius: 12px; background: #fff; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); cursor: pointer; }
+  .profile-avatar { width: 75px; height: 75px; border-radius: 12px; background: #fff; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+  
+  /* 隐藏的管理员入口锁 */
+  .admin-lock { font-size: 12px; color: rgba(255,255,255,0.4); margin-left: 8px; cursor: pointer; padding: 5px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
   
   /* --- 信息流 --- */
   .feed { padding: 45px 15px 20px; }
@@ -43,7 +45,8 @@
   .btn-edit { color: #576b95; }
   .btn-delete { color: #ff4d4f; }
   
-  .fab-btn { position: fixed; bottom: 30px; right: 50%; transform: translateX(210px); width: 56px; height: 56px; background: #07c160; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 4px 15px rgba(7,193,96,0.4); cursor: pointer; z-index: 100; transition: transform 0.2s; }
+  /* 悬浮按钮默认隐藏，靠 JS 控制显示 */
+  .fab-btn { display: none; position: fixed; bottom: 30px; right: 50%; transform: translateX(210px); width: 56px; height: 56px; background: #07c160; color: white; border-radius: 50%; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 4px 15px rgba(7,193,96,0.4); cursor: pointer; z-index: 100; transition: transform 0.2s; }
   .fab-btn:active { transform: translateX(210px) scale(0.9); }
   
   /* --- 弹窗通用样式 --- */
@@ -60,7 +63,6 @@
   .edit-header-btn { background: none; border: none; font-size: 15px; cursor: pointer; font-weight: 500; }
   .edit-cover-area { height: 160px; background-color: #ddd; background-size: cover; background-position: center; position: relative; display: flex; justify-content: center; align-items: center; }
   .edit-camera-btn { background: rgba(0,0,0,0.4); color: white; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; backdrop-filter: blur(5px); font-size: 16px; transition: background 0.2s; }
-  .edit-camera-btn:hover { background: rgba(0,0,0,0.6); }
   .edit-avatar-area { position: absolute; bottom: -35px; left: 20px; }
   .edit-avatar-area img { width: 75px; height: 75px; border-radius: 12px; border: 3px solid white; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
   .edit-avatar-area .edit-camera-btn { position: absolute; top: 18px; left: 18px; width: 38px; height: 38px; font-size: 14px; }
@@ -85,17 +87,18 @@
 <div class="app-container">
   <div id="toast" class="toast"></div>
 
-  <div class="cover" id="display-cover" onclick="openProfileModal()">
+  <div class="cover" id="display-cover" onclick="handleCoverClick()">
     <div class="profile-wrap">
       <div class="name-wrap">
         <div class="profile-name" id="display-name">...</div>
+        <i class="fa-solid fa-lock admin-lock" onclick="secretLogin(event)"></i>
       </div>
       <img class="profile-avatar" id="display-avatar" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=">
     </div>
   </div>
 
   <div class="feed" id="feed-container">
-    <div style="text-align: center; color: #999; margin-top: 50px;">正在连接云端空间...</div>
+    <div style="text-align: center; color: #999; margin-top: 50px;">加载中...</div>
   </div>
 
   <div class="fab-btn" onclick="openPostModal('create')"><i class="fa-solid fa-plus"></i></div>
@@ -107,13 +110,11 @@
         <h3>编辑主页资料</h3>
         <button class="edit-header-btn" style="color:#07c160;" onclick="saveProfile()">完成</button>
       </div>
-      
       <div class="edit-cover-area" id="edit-cover-preview">
         <label class="edit-camera-btn">
           <i class="fa-solid fa-camera"></i>
           <input type="file" accept="image/*" style="display: none;" id="cover-upload">
         </label>
-        
         <div class="edit-avatar-area">
           <img id="edit-avatar-preview" src="">
           <label class="edit-camera-btn">
@@ -122,7 +123,6 @@
           </label>
         </div>
       </div>
-      
       <div class="edit-form-area">
         <label>你的名字</label>
         <div class="form-group" style="margin-bottom: 0;">
@@ -136,23 +136,16 @@
     <div class="modal-box">
       <h3 id="modal-title" style="margin-top: 0;">记录这一刻</h3>
       <input type="hidden" id="post-id">
-      
-      <div class="form-group">
-        <textarea id="post-text" placeholder="这一刻的想法..." style="height: 100px;"></textarea>
-      </div>
-      
+      <div class="form-group"><textarea id="post-text" placeholder="这一刻的想法..." style="height: 100px;"></textarea></div>
       <div class="image-upload-area" id="image-preview-area">
         <label class="add-img-btn" id="add-img-btn-label">
-          <i class="fa-solid fa-plus"></i>
-          <input type="file" accept="image/*" multiple style="display: none;" id="post-images-upload">
+          <i class="fa-solid fa-plus"></i><input type="file" accept="image/*" multiple style="display: none;" id="post-images-upload">
         </label>
       </div>
-      
       <div class="form-group">
         <input type="text" id="post-location" placeholder="所在位置 (例如: 东京 · 涩谷)">
         <input type="datetime-local" id="post-time">
       </div>
-      
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeModal('post-modal')">取消</button>
         <button class="btn-save" onclick="savePost()">发布</button>
@@ -165,7 +158,6 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js";
   import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-firestore.js";
 
-  // 你的专属云端钥匙
   const firebaseConfig = {
     apiKey: "AIzaSyB_e-0wi3aW2pqWOuZFeLbTe5JJ07UrIGU",
     authDomain: "mos-album.firebaseapp.com",
@@ -180,13 +172,65 @@
   const postsCollection = collection(db, "moments");
   const profileDocRef = doc(db, "settings", "my_profile");
 
+  // --- 【核心权限引擎】 ---
+  // 从浏览器本地缓存读取身份，默认不是管理员
+  let isAdmin = localStorage.getItem('mos_admin_key') === 'true';
+
+  // 根据身份更新 UI 显示
+  function applyAdminUI() {
+    const fabBtn = document.querySelector('.fab-btn');
+    const lockIcon = document.querySelector('.admin-lock');
+    if (isAdmin) {
+      fabBtn.style.display = 'flex';
+      lockIcon.classList.remove('fa-lock');
+      lockIcon.classList.add('fa-unlock');
+      lockIcon.style.color = '#07c160';
+    } else {
+      fabBtn.style.display = 'none';
+      lockIcon.classList.remove('fa-unlock');
+      lockIcon.classList.add('fa-lock');
+      lockIcon.style.color = 'rgba(255,255,255,0.4)';
+    }
+    renderFeed(); // 重新渲染列表以隐藏/显示编辑按钮
+  }
+
+  // 秘密解锁入口
+  window.secretLogin = (event) => {
+    event.stopPropagation(); // 阻止触发点击封面的事件
+    if (!isAdmin) {
+      const pwd = prompt("请输入 Erica 专属博主密码：");
+      if (pwd === "erica2026") {
+        localStorage.setItem('mos_admin_key', 'true');
+        isAdmin = true;
+        applyAdminUI();
+        showToast("欢迎回来，Erica！编辑权限已解锁 🔓");
+      } else if (pwd !== null) {
+        showToast("密码错误，你当前为访客模式 👀");
+      }
+    } else {
+      if (confirm("要退出博主模式，锁定页面吗？")) {
+        localStorage.removeItem('mos_admin_key');
+        isAdmin = false;
+        applyAdminUI();
+        showToast("已锁定，当前为访客模式 🔒");
+      }
+    }
+  };
+
+  // 控制封面点击（只有博主才能修改资料）
+  window.handleCoverClick = () => {
+    if (isAdmin) openProfileModal();
+  };
+
+  // 页面加载时立刻应用权限 UI
+  window.onload = applyAdminUI;
+
   // --- 基础工具库 ---
   window.showToast = (msg) => {
     const t = document.getElementById('toast');
     t.textContent = msg; t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 3000);
   };
-  
   window.closeModal = (id) => document.getElementById(id).classList.remove('active');
 
   async function compressImage(file, maxW = 800) {
@@ -206,24 +250,13 @@
     });
   }
 
-  // --- 【全新云端】个人资料管理 ---
-  let userProfile = {
-    name: "旅行者",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Travel",
-    cover: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200"
-  };
-  let tempAvatar = "";
-  let tempCover = "";
+  // --- 个人资料管理 ---
+  let userProfile = { name: "Erica", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Erica", cover: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200" };
+  let tempAvatar = ""; let tempCover = "";
 
-  // 实时监听云端的个人资料更改
   onSnapshot(profileDocRef, (docSnap) => {
-    if (docSnap.exists()) {
-      userProfile = docSnap.data();
-      renderProfile();
-    } else {
-      // 第一次运行，初始化数据库
-      setDoc(profileDocRef, userProfile);
-    }
+    if (docSnap.exists()) { userProfile = docSnap.data(); renderProfile(); }
+    else { setDoc(profileDocRef, userProfile); }
   });
 
   function renderProfile() {
@@ -236,69 +269,47 @@
     document.getElementById('edit-name-input').value = userProfile.name;
     document.getElementById('edit-avatar-preview').src = userProfile.avatar;
     document.getElementById('edit-cover-preview').style.backgroundImage = `url('${userProfile.cover}')`;
-    tempAvatar = userProfile.avatar;
-    tempCover = userProfile.cover;
+    tempAvatar = userProfile.avatar; tempCover = userProfile.cover;
     document.getElementById('profile-modal').classList.add('active');
   };
 
   document.getElementById('avatar-upload').addEventListener('change', async (e) => {
-    if(e.target.files[0]) {
-      showToast("正在处理头像...");
-      tempAvatar = await compressImage(e.target.files[0], 400);
-      document.getElementById('edit-avatar-preview').src = tempAvatar;
-    }
+    if(e.target.files[0]) { showToast("处理头像中..."); tempAvatar = await compressImage(e.target.files[0], 400); document.getElementById('edit-avatar-preview').src = tempAvatar; }
   });
-
   document.getElementById('cover-upload').addEventListener('change', async (e) => {
-    if(e.target.files[0]) {
-      showToast("正在处理封面...");
-      tempCover = await compressImage(e.target.files[0], 1200);
-      document.getElementById('edit-cover-preview').style.backgroundImage = `url('${tempCover}')`;
-    }
+    if(e.target.files[0]) { showToast("处理封面中..."); tempCover = await compressImage(e.target.files[0], 1200); document.getElementById('edit-cover-preview').style.backgroundImage = `url('${tempCover}')`; }
   });
 
-  // 保存资料并推送到云端
   window.saveProfile = async () => {
-    const newName = document.getElementById('edit-name-input').value.trim() || "旅行者";
-    
-    // 更新云端配置
-    await setDoc(profileDocRef, {
-      name: newName,
-      avatar: tempAvatar,
-      cover: tempCover
-    }, { merge: true });
-    
-    showToast("资料已云端同步");
-    closeModal('profile-modal');
+    const newName = document.getElementById('edit-name-input').value.trim() || "Erica";
+    await setDoc(profileDocRef, { name: newName, avatar: tempAvatar, cover: tempCover }, { merge: true });
+    showToast("资料已更新"); closeModal('profile-modal');
   };
 
-  // --- 云端动态管理 (Firestore) ---
-  let currentImages = [];
-  let postsList = [];
+  // --- 云端动态管理 ---
+  let currentImages = []; let postsList = [];
 
   const q = query(postsCollection, orderBy("time", "desc"));
   onSnapshot(q, (snapshot) => {
-    postsList = [];
-    snapshot.forEach((doc) => {
-      postsList.push({ id: doc.id, ...doc.data() });
-    });
-    renderFeed();
+    postsList = []; snapshot.forEach((doc) => { postsList.push({ id: doc.id, ...doc.data() }); }); renderFeed();
   });
 
   function renderFeed() {
     const container = document.getElementById('feed-container');
-    if (postsList.length === 0) {
-      container.innerHTML = '<div style="text-align: center; color: #999; margin-top: 50px;">点击右下角加号，发布第一条云端动态吧！</div>';
-      return;
-    }
+    if (postsList.length === 0) { container.innerHTML = '<div style="text-align: center; color: #999; margin-top: 50px;">这里还空空如也~</div>'; return; }
     
     container.innerHTML = '';
     postsList.forEach(post => {
-      let grid = 'grid-9'; 
-      if (post.images && post.images.length === 1) grid = 'grid-1'; 
-      else if (post.images && [2, 4].includes(post.images.length)) grid = 'grid-4';
-      
+      let grid = 'grid-9'; if (post.images && post.images.length === 1) grid = 'grid-1'; else if (post.images && [2, 4].includes(post.images.length)) grid = 'grid-4';
       const timeStr = new Date(post.time).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+      // 如果是管理员，才输出“修改”和“删除”按钮的 HTML
+      const actionBtnsHTML = isAdmin ? `
+        <div class="action-btns">
+          <button class="action-btn btn-edit" onclick="openPostModal('edit', '${post.id}')">修改</button>
+          <button class="action-btn btn-delete" onclick="deletePost('${post.id}')">删除</button>
+        </div>
+      ` : '';
 
       container.innerHTML += `
         <div class="post">
@@ -310,10 +321,7 @@
             ${post.location ? `<div class="location-tag">${post.location}</div>` : ''}
             <div class="meta-info">
               <span>${timeStr}</span>
-              <div class="action-btns">
-                <button class="action-btn btn-edit" onclick="openPostModal('edit', '${post.id}')">修改</button>
-                <button class="action-btn btn-delete" onclick="deletePost('${post.id}')">删除</button>
-              </div>
+              ${actionBtnsHTML}
             </div>
           </div>
         </div>`;
@@ -329,38 +337,23 @@
       area.insertBefore(box, document.getElementById('add-img-btn-label'));
     });
   }
-  
   window.removeImage = (index) => { currentImages.splice(index, 1); updateImagePreviews(); };
 
   document.getElementById('post-images-upload').addEventListener('change', async (e) => {
-    showToast("正在压缩图片...");
-    for (let file of Array.from(e.target.files).slice(0, 9 - currentImages.length)) {
-      currentImages.push(await compressImage(file, 800));
-    }
+    showToast("图片压缩中...");
+    for (let file of Array.from(e.target.files).slice(0, 9 - currentImages.length)) { currentImages.push(await compressImage(file, 800)); }
     updateImagePreviews();
   });
 
   window.openPostModal = (mode, id = null) => {
-    const modal = document.getElementById('post-modal');
-    modal.classList.add('active');
-    
+    const modal = document.getElementById('post-modal'); modal.classList.add('active');
     if (mode === 'create') {
-      document.getElementById('modal-title').textContent = '记录这一刻';
-      document.getElementById('post-id').value = '';
-      document.getElementById('post-text').value = '';
-      document.getElementById('post-location').value = '';
-      
-      const now = new Date();
-      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      document.getElementById('post-time').value = now.toISOString().slice(0, 16);
+      document.getElementById('modal-title').textContent = '记录这一刻'; document.getElementById('post-id').value = ''; document.getElementById('post-text').value = ''; document.getElementById('post-location').value = '';
+      const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); document.getElementById('post-time').value = now.toISOString().slice(0, 16);
       currentImages = [];
     } else {
-      document.getElementById('modal-title').textContent = '修改动态';
-      const post = postsList.find(p => p.id === id);
-      document.getElementById('post-id').value = post.id;
-      document.getElementById('post-text').value = post.text;
-      document.getElementById('post-location').value = post.location;
-      document.getElementById('post-time').value = post.time;
+      document.getElementById('modal-title').textContent = '修改动态'; const post = postsList.find(p => p.id === id);
+      document.getElementById('post-id').value = post.id; document.getElementById('post-text').value = post.text; document.getElementById('post-location').value = post.location; document.getElementById('post-time').value = post.time;
       currentImages = post.images ? [...post.images] : [];
     }
     updateImagePreviews();
@@ -368,41 +361,16 @@
 
   window.savePost = async () => {
     const id = document.getElementById('post-id').value;
-    const postData = {
-      text: document.getElementById('post-text').value,
-      location: document.getElementById('post-location').value,
-      time: document.getElementById('post-time').value,
-      images: currentImages,
-      authorName: userProfile.name, // 使用当前全局资料
-      authorAvatar: userProfile.avatar
-    };
-
+    const postData = { text: document.getElementById('post-text').value, location: document.getElementById('post-location').value, time: document.getElementById('post-time').value, images: currentImages, authorName: userProfile.name, authorAvatar: userProfile.avatar };
     try {
-      if (id) {
-        const postRef = doc(db, "moments", id);
-        await updateDoc(postRef, postData);
-        showToast("修改已同步至云端");
-      } else {
-        await addDoc(postsCollection, postData);
-        showToast("发布成功");
-      }
+      if (id) { await updateDoc(doc(db, "moments", id), postData); showToast("修改已同步"); } 
+      else { await addDoc(postsCollection, postData); showToast("发布成功"); }
       closeModal('post-modal');
-    } catch (e) {
-      console.error(e);
-      showToast("保存失败，请检查网络");
-    }
+    } catch (e) { showToast("保存失败"); }
   };
 
   window.deletePost = async (id) => {
-    if(confirm("确定要删除这条动态吗？删除后不可恢复。")) {
-      try {
-        await deleteDoc(doc(db, "moments", id));
-        showToast("动态已删除");
-      } catch (e) {
-        console.error(e);
-        showToast("删除失败，请稍后再试");
-      }
-    }
+    if(confirm("确定删除吗？")) { try { await deleteDoc(doc(db, "moments", id)); showToast("已删除"); } catch (e) { showToast("删除失败"); } }
   };
 </script>
 </body>
